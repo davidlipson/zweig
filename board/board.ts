@@ -55,7 +55,6 @@ export class Board {
         checkS0.clear();
         return !checkBoard.hasCheck(colour);
       });
-      console.log(o.piece.symbol, noCheckMoves)
       return noCheckMoves
     });
   }
@@ -78,7 +77,6 @@ export class Board {
   }
 
   move(): void {
-    console.log(this.hasCheck('White'), this.inStale('Black'))
     this.print();
     const s0 = this.selectPiece();
     const validSquares = s0?.piece?.validSquares(s0, this);
@@ -198,11 +196,16 @@ export class Board {
     }
   }
 
+  printRow(row: string, spaces = 5){
+    const spaced = row.split('').join(' '.repeat(spaces))
+    console.log(spaced, '\n')
+  }
+
   print(validSquares = []): void {
     if (this.hasCheck(this.currentMove === 'White' ? 'Black' : 'White')) {
       console.log('YOU ARE NOW IN CHECK!');
     }
-    console.log(`  ${files}`);
+    this.printRow(`  ${files}`);
     [...Array(8).keys()].forEach((r) => {
       let row = `${r + 1} `;
       [...Array(8).keys()].forEach((f) => {
@@ -214,9 +217,9 @@ export class Board {
       } else if (r === 7) {
         row += `   ${this.searchPieces(false, 'White')}`;
       }
-      console.log(row);
+      this.printRow(row);
     });
-    console.log(`  ${files}`);
+    this.printRow(`  ${files}`);
     console.log(`${this.currentMove} TO MOVE`);
   }
 }
