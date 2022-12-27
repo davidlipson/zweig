@@ -5,7 +5,7 @@ export class Pawn extends Piece {
   canEnPassent: boolean = false;
 
   constructor(colour: Colour) {
-    super(colour, 'p');
+    super(colour, '\u2659', 10);
   }
 
   duplicate() {
@@ -41,18 +41,6 @@ export class Pawn extends Piece {
     if (right && right != this.colour) {
       possible.push(board.find(square.file + 1, square.rank + direction));
     }
-
-    /*possible = possible.filter((p) => {
-      const checkBoard = new Board();
-      checkBoard.setState(board);
-      const checkS0 = checkBoard.find(square.file, square.rank);
-      const checkS1 = checkBoard.find(p.file, p.rank);
-      checkS1.capture(checkS0.piece);
-      checkS0.clear();
-      return !checkBoard.hasCheck(
-        checkBoard.currentMove === 'White' ? 'Black' : 'White'
-      );
-    });*/
 
     return possible;
   }

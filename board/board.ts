@@ -8,6 +8,8 @@ const prompt = require('prompt-sync')();
 
 const r0 = [Rook, Horse, Bishop, Queen, King, Bishop, Horse, Rook];
 
+export type BoardPiece = Rook | Horse | Bishop | Queen | King | Pawn;
+
 export class Board {
   squares: Square[] = [];
   pieces: Piece[] = [];
@@ -34,7 +36,7 @@ export class Board {
     // check if any of colour pieces can hit square with king in it
     const kingSquare = this.findSquareByPiece(
       colour === 'White' ? 'Black' : 'White',
-      'k'
+      new King(colour)
     );
     const colourPieces = this.squares.filter((s) => s.piece?.colour === colour);
     return colourPieces.some((c) =>
@@ -43,29 +45,29 @@ export class Board {
   }
 
   inStale(colour: Colour) {
-    const otherSquares = this.squares.filter((s) => s.piece?.colour === colour);
-    return !otherSquares.some((o) => {
-      const validSquares = o.piece.validSquares(o, this);
-      const noCheckMoves = validSquares.filter((v) => {
-        const checkBoard = new Board();
-        checkBoard.setState(this);
-        const checkS0 = checkBoard.find(o.file, o.rank);
-        const checkS1 = checkBoard.find(v.file, v.rank);
-        checkS1.capture(checkS0.piece);
-        checkS0.clear();
-        return !checkBoard.hasCheck(colour);
+    const colourSquares = this.squares.filter(
+      (s) => s.piece?.colour === colour
+    );
+    return !colourSquares.some((c) => {
+      const validSquares = c.piece.validSquares(c, this);
+      return validSquares.some((v) => {
+        const checkBoard = this.simulateMove(c, v);
+        return !checkBoard.hasCheck(colour === 'White' ? 'Black' : 'White');
       });
-      return noCheckMoves
     });
   }
 
   hasMate(colour: Colour) {
-    return this.hasCheck(colour) && this.inStale(colour === 'Black' ? 'White' : 'Black');
+    return (
+      this.hasCheck(colour) &&
+      this.inStale(colour === 'Black' ? 'White' : 'Black')
+    );
   }
 
-  findSquareByPiece(colour: Colour, symbol: string): Square {
-    const colouredSymbol = colour === 'White' ? symbol : symbol.toUpperCase();
-    return this.squares.find((s) => s.piece?.symbol === colouredSymbol);
+  findSquareByPiece(colour: Colour, piece: BoardPiece): Square {
+    return this.squares.find(
+      (s) => s.piece?.symbol === piece.symbol && s.piece?.colour === colour
+    );
   }
 
   setState(board: Board) {
@@ -76,51 +78,120 @@ export class Board {
     });
   }
 
+  simulateMove(s0: Square, s1: Square): Board {
+    const checkBoard = new Board();
+    checkBoard.setState(this);
+    const checkS0 = checkBoard.find(s0.file, s0.rank);
+    const checkS1 = checkBoard.find(s1.file, s1.rank);
+    checkS1.capture(checkS0.piece);
+    checkS0.clear();
+    return checkBoard;
+  }
+
+  // need to incorporate white still so its back and forth moves!!!
+
+
+
+
+  computerMove(level = 4): { score: number; start?: Square; move?: Square } {
+    if (level > 0) {
+      let squares = this.squares
+        .filter((s) => s.piece?.colour === 'Black')
+        .filter((s) => s.piece.validSquares(s, this).length > 0);
+      let bestStart: Square = null;
+      let bestMove: Square = null;
+      let bestScore = 1000;
+      squares.forEach((square) => {
+        square.piece.validSquares(square, this).forEach((move) => {
+          const simulatedMove = this.simulateMove(square, move);
+          const nextLevel = simulatedMove.computerMove(level - 1);
+          const simulatedMoveScore =
+            simulatedMove.score()/level + nextLevel.score;
+          if (simulatedMoveScore < bestScore) {
+            bestStart = square;
+            bestMove = move;
+            bestScore = simulatedMoveScore;
+          }
+        });
+      });
+      return { score: bestScore, move: bestMove, start: bestStart };
+    } else {
+      return { score: 0 };
+    }
+  }
+
+  score() {
+    const livingPieces = this.squares.filter((s) => Boolean(s.piece));
+    let score = 0;
+    livingPieces.forEach((l) => {
+      score += l.piece.score * (l.piece.colour === 'White' ? 1 : -1);
+    });
+    return score;
+  }
+
   move(): void {
-    this.print();
-    const s0 = this.selectPiece();
-    const validSquares = s0?.piece?.validSquares(s0, this);
-    if (s0 && validSquares.length > 0) {
+    if (this.currentMove === 'Black') {
       while (true) {
+        const { score, start, move } = this.computerMove();
+        const checkBoard = this.simulateMove(start, move);
+        if (
+          start &&
+          start.piece?.validSquares(start, this) &&
+          move &&
+          start.canMove(this, move) &&
+          !checkBoard.hasCheck('White')
+        ) {
+          console.log(score, start, move);
+          move.capture(start.piece);
+          start.clear();
+          // promotion
+          if (
+            move.piece.symbol === new Pawn('Black').symbol &&
+            move.rank === 7
+          ) {
+            console.log(`BLACK PAWN PROMOTED!`);
+            const promotion = new Queen('Black');
+            promotion.moved = true;
+            this.pieces.push(promotion);
+            move.piece = promotion;
+          }
+
+          this.currentMove = 'White';
+
+          break;
+        }
+      }
+    } else {
+      this.print();
+      const s0 = this.selectPiece();
+      const validSquares = s0?.piece?.validSquares(s0, this);
+      if (s0 && validSquares.length > 0) {
         this.print(validSquares);
         const s1 = this.selectMove(s0);
         if (s0 && s1 && s0.canMove(this, s1)) {
-          const checkBoard = new Board();
-          checkBoard.setState(this);
-          const checkS0 = checkBoard.find(s0.file, s0.rank);
-          const checkS1 = checkBoard.find(s1.file, s1.rank);
-          checkS1.capture(checkS0.piece);
-          checkS0.clear();
-          if (
-            checkBoard.hasCheck(
-              checkBoard.currentMove === 'White' ? 'Black' : 'White'
-            )
-          ) {
+          const checkBoard = this.simulateMove(s0, s1);
+          if (checkBoard.hasCheck('Black')) {
             console.log('INVALID MOVE (CHECK)');
           } else {
             s1.capture(s0.piece);
             s0.clear();
             // promotion
-            if (
-              (s1.piece.symbol === 'p' && s1.rank === 0) ||
-              (s1.piece.symbol === 'P' && s1.rank === 7)
-            ) {
+            if (s1.piece.symbol === new Pawn('White').symbol && s1.rank === 0) {
               console.log(`${s1.piece.colour.toUpperCase()} PAWN PROMOTED!`);
               const promotion = new Queen(s1.piece.colour);
               promotion.moved = true;
               this.pieces.push(promotion);
               s1.piece = promotion;
             }
-            //this.currentMove = this.currentMove === 'White' ? 'Black' : 'White';
 
-            break;
+            this.currentMove = 'Black';
           }
         } else {
           console.log('INVALID PIECE SELECTED');
         }
+      } else {
+        console.log('INVALID SELECTION');
       }
-    } else {
-      console.log('INVALID SELECTION');
     }
   }
 
@@ -196,30 +267,27 @@ export class Board {
     }
   }
 
-  printRow(row: string, spaces = 5){
-    const spaced = row.split('').join(' '.repeat(spaces))
-    console.log(spaced, '\n')
-  }
-
   print(validSquares = []): void {
     if (this.hasCheck(this.currentMove === 'White' ? 'Black' : 'White')) {
       console.log('YOU ARE NOW IN CHECK!');
     }
-    this.printRow(`  ${files}`);
+    console.log(`    ${files.split('').join(' '.repeat(2))}`);
     [...Array(8).keys()].forEach((r) => {
-      let row = `${r + 1} `;
+      let row = [`${r + 1} `];
       [...Array(8).keys()].forEach((f) => {
         const idx = r + 8 * f;
-        row += this.squares[idx].print(validSquares.includes(this.find(f, r)));
+        row.push(
+          this.squares[idx].print(validSquares.includes(this.find(f, r)))
+        );
       });
       if (r === 0) {
-        row += `   ${this.searchPieces(false, 'Black')}`;
+        row.push(`   ${this.searchPieces(false, 'Black')}`);
       } else if (r === 7) {
-        row += `   ${this.searchPieces(false, 'White')}`;
+        row.push(`   ${this.searchPieces(false, 'White')}`);
       }
-      this.printRow(row);
+      console.log(row.join(' '.repeat(2)));
     });
-    this.printRow(`  ${files}`);
+    console.log(`    ${files.split('').join(' '.repeat(2))}`);
     console.log(`${this.currentMove} TO MOVE`);
   }
 }

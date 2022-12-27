@@ -6,14 +6,16 @@ export class Piece {
   moved: boolean = false;
   colour: Colour;
   symbol: string;
+  score: number;
 
-  constructor(colour: Colour, symbol: string) {
+  constructor(colour: Colour, symbol: string, score: number) {
     this.colour = colour;
-    this.symbol = colour === 'Black' ? symbol.toUpperCase() : symbol;
+    this.symbol = symbol;
+    this.score = score
   }
 
   duplicate() {
-    const dup = new Piece(this.colour, this.symbol);
+    const dup = new Piece(this.colour, this.symbol, this.score);
     dup.alive = this.alive;
     dup.moved = this.moved;
     return dup;
@@ -35,18 +37,8 @@ export class Piece {
     r += itRank;
     while (f >= 0 && f < 8 && r < 8 && r >= 0 && count < limit) {
       const state = board.state(f, r);
-      /*const checkBoard = new Board();
-      checkBoard.setState(board);
-      const checkS0 = checkBoard.find(fInit, rInit);
-      const checkS1 = checkBoard.find(f, r);
-      checkS1.capture(checkS0.piece);
-      checkS0.clear();*/
-      if (
-        /*!checkBoard.hasCheck(
-          checkBoard.currentMove === 'White' ? 'Black' : 'White'
-        ) &&*/
-        state !== this.colour
-      ) {
+
+      if (state !== this.colour) {
         possible.push(board.find(f, r));
         if (state) {
           break;
@@ -62,12 +54,13 @@ export class Piece {
     return possible;
   }
 
-  validSquares(square: Square, board: Board) {
+  validSquares(square: Square, board: Board): Square[] {
     return [];
   }
 
   print(showAsValid?: boolean) {
-    return showAsValid ? '*' : this.symbol;
+    const col = this.colour === 'White' ? '\x1b[33m' : '\x1b[34m';
+    return showAsValid ? '*' : `${col}${this.symbol}\x1b[0m`;
     // make this clearer
   }
 }

@@ -5,7 +5,7 @@ import { Rook } from './rook';
 
 export class Queen extends Piece {
   constructor(colour: Colour) {
-    super(colour, 'q');
+    super(colour, '\u2655', 90);
   }
 
   duplicate(){

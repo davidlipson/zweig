@@ -3,7 +3,7 @@ import { Colour, Piece } from './piece';
 
 export class Horse extends Piece {
   constructor(colour: Colour) {
-    super(colour, 'h');
+    super(colour, '\u2658', 30);
   }
 
   duplicate(){

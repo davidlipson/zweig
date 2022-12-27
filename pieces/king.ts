@@ -5,7 +5,7 @@ import { Rook } from './rook';
 
 export class King extends Piece {
   constructor(colour: Colour) {
-    super(colour, 'k');
+    super(colour, '\u2654', 900);
   }
 
   duplicate() {
@@ -21,6 +21,9 @@ export class King extends Piece {
     const rookCheck = new Rook(this.colour);
     possible = possible.concat(bishopCheck.validSquares(square, board, 1));
     possible = possible.concat(rookCheck.validSquares(square, board, 1));
+    
+    // castling
+
     return possible;
   }
 }
